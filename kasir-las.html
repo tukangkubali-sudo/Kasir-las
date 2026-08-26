@@ -6,6 +6,7 @@
 <title>Kasir Las — Karya Makmur</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
     --bg:#1b1e21;
@@ -232,6 +233,48 @@
   .btn-wa{background:var(--flame); color:#fff;}
   .btn-lunas{background:var(--success); color:#0e1a13;}
   .btn-del{background:var(--panel-2); color:var(--warn); border:1px solid var(--border) !important;}
+
+  /* role badge & sync */
+  .role-badge{
+    display:inline-flex; align-items:center; gap:5px; font-size:9.5px; font-family:'Oswald'; letter-spacing:0.05em;
+    padding:3px 9px; border-radius:20px; margin-top:3px;
+  }
+  .role-badge.owner{background:rgba(255,107,26,0.16); color:var(--spark);}
+  .role-badge.kasir{background:rgba(76,175,125,0.14); color:var(--success);}
+  .header-right{margin-left:auto; text-align:right;}
+  .role-switch-link{font-size:9.5px; color:var(--text-muted); text-decoration:underline; cursor:pointer; margin-top:3px;}
+  .sync-note{font-size:10.5px; color:var(--text-muted); text-align:center; margin:-4px 0 12px;}
+  .refresh-link{font-size:10.5px; color:var(--spark); text-decoration:underline; cursor:pointer; text-align:center; display:block; margin-bottom:10px;}
+
+  /* role setup */
+  .role-pick-btn{
+    width:100%; padding:16px; margin-bottom:10px; border-radius:12px; border:1px solid var(--border);
+    background:var(--panel-2); color:var(--text); font-family:'Oswald'; font-size:14px; letter-spacing:0.03em;
+    text-align:left; cursor:pointer; display:flex; align-items:center; gap:10px;
+  }
+  .role-pick-btn span.emoji{font-size:22px;}
+  .role-pick-btn small{display:block; font-family:'Inter'; font-size:10.5px; color:var(--text-muted); text-transform:none; letter-spacing:0; margin-top:2px;}
+
+  /* requests / approvals */
+  .req-item{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px;
+  }
+  .req-item .req-top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .req-item .req-name{font-size:13px; flex:1;}
+  .req-item .req-meta{font-size:10.5px; color:var(--text-muted); margin-top:3px;}
+  .req-item .req-price-change{font-size:12.5px; font-family:'JetBrains Mono'; margin-top:5px;}
+  .badge.pending{background:rgba(255,201,77,0.16); color:var(--spark);}
+  .badge.approved{background:rgba(76,175,125,0.16); color:var(--success);}
+  .badge.rejected{background:rgba(232,93,74,0.16); color:var(--warn);}
+  .req-actions{display:flex; gap:7px; margin-top:9px;}
+  .req-actions button{flex:1; padding:8px; border-radius:8px; border:none; font-family:'Oswald'; font-size:11px; letter-spacing:0.03em; cursor:pointer;}
+  .btn-approve{background:var(--success); color:#0e1a13;}
+  .btn-reject{background:var(--panel-3); color:var(--warn); border:1px solid var(--border) !important;}
+  .btn-propose{background:none; border:1px solid var(--flame); color:var(--spark); font-family:'Oswald'; font-size:10.5px; padding:6px 10px; border-radius:7px; cursor:pointer; white-space:nowrap;}
+  .tab-badge-count{
+    display:inline-block; background:var(--warn); color:#fff; font-size:9px; font-family:'Inter'; font-weight:700;
+    border-radius:20px; padding:1px 6px; margin-left:4px; vertical-align:top;
+  }
 </style>
 </head>
 <body>
@@ -244,12 +287,17 @@
     <h1>Kasir Las</h1>
     <div class="sub" id="bizSubHeader">Bengkel Las Karya Makmur</div>
   </div>
+  <div class="header-right">
+    <div class="role-badge" id="roleBadge"></div>
+    <div class="role-switch-link" onclick="openRoleSetup(true)">Ganti Peran</div>
+  </div>
 </header>
 
 <div class="tabs">
   <div class="tab active" id="tabNewBtn" onclick="switchTab('new')">Transaksi Baru</div>
   <div class="tab" id="tabHistBtn" onclick="switchTab('hist')">Riwayat</div>
   <div class="tab" id="tabPriceBtn" onclick="switchTab('price')">Daftar Harga</div>
+  <div class="tab" id="tabApprovalBtn" onclick="switchTab('approval')" style="display:none;">Persetujuan<span class="tab-badge-count" id="approvalCount" style="display:none;"></span></div>
 </div>
 
 <main>
@@ -316,12 +364,23 @@
   <div class="card">
     <h2>Harga Pengelasan — Karya Makmur</h2>
     <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:10px;">
-      Perkiraan harga umum bengkel las di Bali. Boleh diubah bebas sesuai harga bengkel kamu — tinggal edit angkanya, langsung tersimpan.
+      Perkiraan harga umum bengkel las di Bali. <span id="plRoleNote"></span>
     </div>
+    <div class="refresh-link" onclick="syncPriceList(true)">🔄 Segarkan daftar harga</div>
     <input type="text" id="plSearchInput" placeholder="🔍 Cari jenis pekerjaan..." oninput="renderPriceList()" style="margin-bottom:12px;">
     <div id="priceListWrap"></div>
   </div>
-  <div class="pl-reset" onclick="resetPriceList()">↺ Kembalikan ke daftar harga default</div>
+  <div id="myRequestsCard"></div>
+  <div class="pl-reset" id="plResetLink" onclick="resetPriceList()">↺ Kembalikan ke daftar harga default</div>
+</section>
+
+<!-- ===== TAB: PERSETUJUAN (owner only) ===== -->
+<section id="tabApproval" style="display:none;">
+  <div class="card">
+    <h2>Usulan Menunggu Persetujuan</h2>
+    <div class="refresh-link" onclick="syncApprovals(true)">🔄 Segarkan usulan</div>
+    <div id="approvalWrap"></div>
+  </div>
 </section>
 
 </main>
@@ -376,11 +435,62 @@
   </div>
 </div>
 
+<!-- ===== ROLE SETUP MODAL ===== -->
+<div class="modal-bg" id="roleModalBg">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Kamu Login Sebagai Siapa?</h3>
+    <div id="roleStep1">
+      <button class="role-pick-btn" onclick="pickRole('owner')">
+        <span class="emoji">👔</span>
+        <span>Owner<small>Kelola harga & setujui usulan kasir</small></span>
+      </button>
+      <button class="role-pick-btn" onclick="pickRole('kasir')">
+        <span class="emoji">🧑‍🔧</span>
+        <span>Kasir<small>Buat transaksi & usul perubahan harga</small></span>
+      </button>
+    </div>
+    <div id="roleStepOwnerPin" style="display:none;">
+      <label>Masukkan PIN Owner</label>
+      <input type="password" id="ownerPinInput" inputmode="numeric" placeholder="••••••">
+      <button class="modal-close" style="background:var(--flame); color:#fff; border:none; margin-top:12px;" onclick="confirmOwnerPin()">Masuk sebagai Owner</button>
+      <button class="modal-close" onclick="backToRoleStep1()">Kembali</button>
+    </div>
+    <div id="roleStepKasirName" style="display:none;">
+      <label>Nama Kasir (biar owner tahu siapa yang usul)</label>
+      <input type="text" id="kasirNameInput" placeholder="Contoh: Made">
+      <button class="modal-close" style="background:var(--success); color:#0e1a13; border:none; margin-top:12px;" onclick="confirmKasirName()">Masuk sebagai Kasir</button>
+      <button class="modal-close" onclick="backToRoleStep1()">Kembali</button>
+    </div>
+    <button class="modal-close" id="roleCancelBtn" onclick="closeRoleSetup()" style="display:none;">Batal</button>
+  </div>
+</div>
+
+<!-- ===== USULKAN PERUBAHAN HARGA MODAL (kasir) ===== -->
+<div class="modal-bg" id="proposeModalBg" onclick="closeModalBg(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="proposeModalTitle">Usulkan Perubahan Harga</h3>
+    <div id="proposeCurrentInfo" style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;"></div>
+    <label>Harga Usulan (Rp)</label>
+    <input type="number" id="proposeHarga" inputmode="numeric" placeholder="0">
+    <button class="modal-close" style="background:var(--flame); color:#fff; border:none; margin-top:12px;" onclick="submitProposeEdit()">Kirim Usulan</button>
+    <button class="modal-close" onclick="closeProposeModal()">Batal</button>
+  </div>
+</div>
+
 <script>
+const SUPABASE_URL = 'https://jcyemcwjuhgavagqlcqe.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjeWVtY3dqdWhnYXZhZ3FsY3FlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3MjA0NDMsImV4cCI6MjEwMzI5NjQ0M30.wU_Dm53LbjVpLIBP6AldST5m322yshilIbDqdy3S2MU';
+const OWNER_PIN = '234559';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 let items = [];
 let payType = 'lunas';
 let itemIdCounter = 0;
 let currentDetailId = null;
+let priceListCache = [];
+let myRequestsCache = [];
+let approvalsCache = [];
+let proposeTargetItem = null; // {mode:'edit', id, kategori, sub, nama, satuan, hargaLama} or {mode:'add'}
 
 const DEFAULT_SETTINGS = {
   name: 'Bengkel Las Karya Makmur',
@@ -455,54 +565,214 @@ function saveHistory(h){
   localStorage.setItem('kasirlas_history', JSON.stringify(h));
 }
 function loadPriceList(){
-  const p = localStorage.getItem('kasirlas_pricelist');
-  return p ? JSON.parse(p) : DEFAULT_PRICELIST;
+  return priceListCache;
 }
-function savePriceList(list){
-  localStorage.setItem('kasirlas_pricelist', JSON.stringify(list));
+function getRole(){
+  return localStorage.getItem('kasirlas_role') || '';
 }
+function getKasirName(){
+  return localStorage.getItem('kasirlas_kasir_name') || 'Kasir';
+}
+function isOwner(){
+  return getRole() === 'owner';
+}
+
+async function syncPriceList(showAlert){
+  try{
+    const { data, error } = await sb.from('price_list').select('*').order('kategori').order('sub').order('nama');
+    if(error) throw error;
+    if(data.length === 0){
+      // seed with defaults the first time anyone opens the app
+      await sb.from('price_list').insert(DEFAULT_PRICELIST);
+      const again = await sb.from('price_list').select('*').order('kategori').order('sub').order('nama');
+      priceListCache = again.data || DEFAULT_PRICELIST;
+    } else {
+      priceListCache = data;
+    }
+    localStorage.setItem('kasirlas_pricelist_cache', JSON.stringify(priceListCache));
+  } catch(e){
+    const cached = localStorage.getItem('kasirlas_pricelist_cache');
+    priceListCache = cached ? JSON.parse(cached) : DEFAULT_PRICELIST;
+    if(showAlert) alert('Tidak bisa tersambung ke internet. Menampilkan data tersimpan terakhir.');
+  }
+  renderPriceList();
+  renderItems();
+}
+
 function resetPriceList(){
-  if(!confirm('Kembalikan semua harga ke daftar default? Perubahan yang sudah kamu buat akan hilang.')) return;
-  savePriceList(DEFAULT_PRICELIST);
-  renderPriceList();
-  renderItems();
+  if(!isOwner()){ alert('Hanya Owner yang bisa reset daftar harga.'); return; }
+  if(!confirm('Kembalikan semua harga ke daftar default? Perubahan yang sudah ada akan hilang untuk semua orang.')) return;
+  (async () => {
+    await sb.from('price_list').delete().neq('id', '___none___');
+    await sb.from('price_list').insert(DEFAULT_PRICELIST);
+    await syncPriceList();
+  })();
 }
-function updatePLPrice(id, value){
-  const list = loadPriceList();
-  const p = list.find(x => x.id === id);
-  if(!p) return;
-  p.harga = parseFloat(value) || 0;
-  savePriceList(list);
-  renderItems();
+async function updatePLPrice(id, value){
+  if(!isOwner()) return;
+  const harga = parseFloat(value) || 0;
+  await sb.from('price_list').update({harga, updated_at: new Date().toISOString()}).eq('id', id);
+  await syncPriceList();
 }
-function deletePLItem(id){
-  let list = loadPriceList();
-  list = list.filter(x => x.id !== id);
-  savePriceList(list);
-  renderPriceList();
-  renderItems();
+async function deletePLItem(id){
+  if(!isOwner()) return;
+  if(!confirm('Hapus item harga ini?')) return;
+  await sb.from('price_list').delete().eq('id', id);
+  await syncPriceList();
 }
-function addPLItem(){
+async function addPLItem(){
+  if(!isOwner()) return;
   const kategori = document.getElementById('plNewKategori').value;
   const nama = document.getElementById('plNewNama').value.trim();
   const harga = parseFloat(document.getElementById('plNewHarga').value) || 0;
-  const sub = document.getElementById('plNewSub').value.trim() || (kategori === 'titik' ? 'Lainnya' : 'Lainnya');
+  const sub = document.getElementById('plNewSub').value.trim() || 'Lainnya';
   const satuan = kategori === 'titik' ? 'titik' : (document.getElementById('plNewSatuan').value.trim() || 'meter');
   if(!nama){ alert('Isi nama pekerjaan dulu ya.'); return; }
-  const list = loadPriceList();
-  list.push({id: 'c' + Date.now(), kategori, sub, nama, satuan, harga});
-  savePriceList(list);
+  await sb.from('price_list').insert({id: 'c' + Date.now(), kategori, sub, nama, satuan, harga});
   document.getElementById('plNewNama').value = '';
   document.getElementById('plNewHarga').value = '';
   document.getElementById('plNewSub').value = '';
-  renderPriceList();
-  renderItems();
+  await syncPriceList();
+}
+
+/* ===== KASIR: USULAN PERUBAHAN HARGA ===== */
+function openProposeEdit(item){
+  proposeTargetItem = {mode:'edit', id:item.id, kategori:item.kategori, sub:item.sub, nama:item.nama, satuan:item.satuan, hargaLama:item.harga};
+  document.getElementById('proposeModalTitle').textContent = 'Usulkan Perubahan Harga';
+  document.getElementById('proposeCurrentInfo').textContent = item.nama + ' — harga sekarang: ' + rupiah(item.harga) + '/' + item.satuan;
+  document.getElementById('proposeHarga').value = '';
+  document.getElementById('proposeModalBg').classList.add('show');
+}
+function openProposeAdd(){
+  const nama = prompt('Nama pekerjaan baru:');
+  if(!nama) return;
+  const kategori = confirm('Tap OK untuk "Per Meter/M²", Cancel untuk "Per Titik"') ? 'meter' : 'titik';
+  const satuan = kategori === 'meter' ? (prompt('Satuan (meter / m²):', 'meter') || 'meter') : 'titik';
+  const sub = prompt('Sub-kategori (contoh: Pagar & Gerbang):', 'Lainnya') || 'Lainnya';
+  proposeTargetItem = {mode:'add', kategori, sub, nama, satuan, hargaLama:0};
+  document.getElementById('proposeModalTitle').textContent = 'Usulkan Item Baru';
+  document.getElementById('proposeCurrentInfo').textContent = nama + ' (' + sub + ') — per ' + satuan;
+  document.getElementById('proposeHarga').value = '';
+  document.getElementById('proposeModalBg').classList.add('show');
+}
+function closeProposeModal(){
+  document.getElementById('proposeModalBg').classList.remove('show');
+  proposeTargetItem = null;
+}
+async function submitProposeEdit(){
+  const harga = parseFloat(document.getElementById('proposeHarga').value) || 0;
+  if(!harga){ alert('Isi harga usulan dulu ya.'); return; }
+  const t = proposeTargetItem;
+  if(!t) return;
+  await sb.from('price_requests').insert({
+    type: t.mode === 'add' ? 'add' : 'edit',
+    target_id: t.mode === 'edit' ? t.id : null,
+    kategori: t.kategori, sub: t.sub, nama: t.nama, satuan: t.satuan, harga,
+    requested_by: getKasirName()
+  });
+  closeProposeModal();
+  alert('Usulan terkirim, menunggu persetujuan owner.');
+  syncMyRequests();
+}
+async function syncMyRequests(){
+  if(isOwner()) return;
+  try{
+    const { data } = await sb.from('price_requests').select('*').eq('requested_by', getKasirName()).order('requested_at', {ascending:false}).limit(20);
+    myRequestsCache = data || [];
+  } catch(e){ myRequestsCache = []; }
+  renderMyRequests();
+}
+function renderMyRequests(){
+  const wrap = document.getElementById('myRequestsCard');
+  if(!wrap || isOwner()) { if(wrap) wrap.innerHTML=''; return; }
+  if(myRequestsCache.length === 0){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = `
+    <div class="card">
+      <h2>Usulan Saya</h2>
+      ${myRequestsCache.map(r => `
+        <div class="req-item">
+          <div class="req-top">
+            <div class="req-name">${escapeHtml(r.nama)}<div class="req-meta">${r.type==='add' ? 'Usul item baru' : 'Usul ubah harga'} · ${rupiah(r.harga)}/${escapeHtml(r.satuan||'')}</div></div>
+            <div class="badge ${r.status}">${r.status==='pending'?'MENUNGGU':r.status==='approved'?'DISETUJUI':'DITOLAK'}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+/* ===== OWNER: PERSETUJUAN ===== */
+async function syncApprovals(showAlert){
+  if(!isOwner()) return;
+  try{
+    const { data, error } = await sb.from('price_requests').select('*').eq('status','pending').order('requested_at', {ascending:false});
+    if(error) throw error;
+    approvalsCache = data || [];
+  } catch(e){
+    if(showAlert) alert('Tidak bisa tersambung ke internet.');
+    approvalsCache = [];
+  }
+  const badge = document.getElementById('approvalCount');
+  if(approvalsCache.length > 0){
+    badge.style.display = 'inline-block';
+    badge.textContent = approvalsCache.length;
+  } else {
+    badge.style.display = 'none';
+  }
+  renderApprovals();
+}
+function renderApprovals(){
+  const wrap = document.getElementById('approvalWrap');
+  if(!wrap) return;
+  if(approvalsCache.length === 0){
+    wrap.innerHTML = '<div class="empty-state">Tidak ada usulan yang menunggu persetujuan.</div>';
+    return;
+  }
+  wrap.innerHTML = approvalsCache.map(r => `
+    <div class="req-item">
+      <div class="req-top">
+        <div class="req-name">${escapeHtml(r.nama)}
+          <div class="req-meta">Dari: ${escapeHtml(r.requested_by||'-')} · ${r.type==='add' ? 'Usul item baru' : 'Usul ubah harga'} · ${escapeHtml(r.sub||'')}</div>
+          <div class="req-price-change">${rupiah(r.harga)} / ${escapeHtml(r.satuan||'')}</div>
+        </div>
+        <div class="badge pending">MENUNGGU</div>
+      </div>
+      <div class="req-actions">
+        <button class="btn-approve" onclick="approveRequest('${r.id}')">✓ Setujui</button>
+        <button class="btn-reject" onclick="rejectRequest('${r.id}')">✕ Tolak</button>
+      </div>
+    </div>
+  `).join('');
+}
+async function approveRequest(id){
+  const r = approvalsCache.find(x => x.id === id);
+  if(!r) return;
+  if(r.type === 'add'){
+    await sb.from('price_list').insert({id:'c'+Date.now(), kategori:r.kategori, sub:r.sub, nama:r.nama, satuan:r.satuan, harga:r.harga});
+  } else if(r.type === 'edit'){
+    await sb.from('price_list').update({harga:r.harga, updated_at:new Date().toISOString()}).eq('id', r.target_id);
+  } else if(r.type === 'delete'){
+    await sb.from('price_list').delete().eq('id', r.target_id);
+  }
+  await sb.from('price_requests').update({status:'approved', reviewed_at:new Date().toISOString()}).eq('id', id);
+  await syncApprovals();
+  await syncPriceList();
+}
+async function rejectRequest(id){
+  await sb.from('price_requests').update({status:'rejected', reviewed_at:new Date().toISOString()}).eq('id', id);
+  await syncApprovals();
 }
 function renderPriceList(){
   const wrap = document.getElementById('priceListWrap');
   if(!wrap) return;
   const q = (document.getElementById('plSearchInput').value || '').trim().toLowerCase();
-  const list = loadPriceList().filter(p => !q || p.nama.toLowerCase().includes(q) || (p.sub||'').toLowerCase().includes(q));
+  const list = priceListCache.filter(p => !q || p.nama.toLowerCase().includes(q) || (p.sub||'').toLowerCase().includes(q));
+  const owner = isOwner();
+
+  document.getElementById('plRoleNote').textContent = owner
+    ? 'Sebagai Owner, harga bisa diedit/dihapus langsung — tinggal edit angkanya, langsung tersimpan untuk semua.'
+    : 'Sebagai Kasir, perubahan harga perlu di-ACC Owner dulu. Tap "Usulkan" untuk mengajukan.';
+  document.getElementById('plResetLink').style.display = owner ? 'block' : 'none';
 
   function section(arr){
     const subs = [...new Set(arr.map(p => p.sub || 'Lainnya'))];
@@ -511,8 +781,12 @@ function renderPriceList(){
       ${arr.filter(p => (p.sub||'Lainnya') === sub).map(p => `
         <div class="pl-item">
           <div class="pl-name">${escapeHtml(p.nama)}<div class="pl-unit">per ${escapeHtml(p.satuan)}</div></div>
-          <input class="pl-price" type="number" value="${p.harga}" inputmode="numeric" onchange="updatePLPrice('${p.id}', this.value)">
-          <button class="pl-del" onclick="deletePLItem('${p.id}')">✕</button>
+          ${owner
+            ? `<input class="pl-price" type="number" value="${p.harga}" inputmode="numeric" onchange="updatePLPrice('${p.id}', this.value)">
+               <button class="pl-del" onclick="deletePLItem('${p.id}')">✕</button>`
+            : `<div class="mono" style="width:100px; text-align:right; font-size:12.5px; color:var(--spark);">${rupiah(p.harga)}</div>
+               <button class="btn-propose" onclick='openProposeEdit(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Usulkan</button>`
+          }
         </div>
       `).join('')}
     `).join('');
@@ -525,7 +799,7 @@ function renderPriceList(){
   wrap.innerHTML = (empty ? '<div class="empty-state">Tidak ditemukan. Coba kata kunci lain.</div>' : `
     ${titik.length ? '<div class="pl-cat-title">Per Titik (Reparasi / Sambungan Kecil)</div>' + section(titik) : ''}
     ${meter.length ? '<div class="pl-cat-title">Per Meter / M² (Pekerjaan Buat Baru)</div>' + section(meter) : ''}
-  `) + `
+  `) + (owner ? `
     <div class="pl-add-form">
       <div>
         <div class="mini-label">Nama Pekerjaan Baru</div>
@@ -552,7 +826,9 @@ function renderPriceList(){
       </div>
       <button class="pl-add-btn" onclick="addPLItem()">+ Tambah ke Daftar Harga</button>
     </div>
-  `;
+  ` : `
+    <button class="add-item-btn" style="margin-top:12px;" onclick="openProposeAdd()">+ Usulkan Item Baru</button>
+  `);
 }
 
 function getNextInvoiceNo(){
@@ -822,12 +1098,15 @@ function switchTab(t){
   document.getElementById('tabNew').style.display = t==='new' ? 'block' : 'none';
   document.getElementById('tabHist').style.display = t==='hist' ? 'block' : 'none';
   document.getElementById('tabPrice').style.display = t==='price' ? 'block' : 'none';
+  document.getElementById('tabApproval').style.display = t==='approval' ? 'block' : 'none';
   document.getElementById('actionBarNew').style.display = t==='new' ? 'block' : 'none';
   document.getElementById('tabNewBtn').classList.toggle('active', t==='new');
   document.getElementById('tabHistBtn').classList.toggle('active', t==='hist');
   document.getElementById('tabPriceBtn').classList.toggle('active', t==='price');
+  document.getElementById('tabApprovalBtn').classList.toggle('active', t==='approval');
   if(t==='hist') renderHistory();
-  if(t==='price') renderPriceList();
+  if(t==='price'){ syncPriceList(); if(!isOwner()) syncMyRequests(); }
+  if(t==='approval') syncApprovals();
 }
 
 /* ===== HISTORY ===== */
@@ -919,17 +1198,84 @@ function saveSettings(){
   renderAll();
 }
 
+/* ===== ROLE SETUP ===== */
+function applyRoleUI(){
+  const role = getRole();
+  const badge = document.getElementById('roleBadge');
+  if(role === 'owner'){
+    badge.className = 'role-badge owner';
+    badge.textContent = '👔 OWNER';
+    document.getElementById('tabApprovalBtn').style.display = 'block';
+  } else if(role === 'kasir'){
+    badge.className = 'role-badge kasir';
+    badge.textContent = '🧑‍🔧 ' + getKasirName().toUpperCase();
+    document.getElementById('tabApprovalBtn').style.display = 'none';
+  } else {
+    badge.textContent = '';
+  }
+}
+function openRoleSetup(cancelable){
+  document.getElementById('roleStep1').style.display = 'block';
+  document.getElementById('roleStepOwnerPin').style.display = 'none';
+  document.getElementById('roleStepKasirName').style.display = 'none';
+  document.getElementById('roleCancelBtn').style.display = cancelable ? 'block' : 'none';
+  document.getElementById('roleModalBg').classList.add('show');
+}
+function closeRoleSetup(){
+  document.getElementById('roleModalBg').classList.remove('show');
+}
+function backToRoleStep1(){
+  document.getElementById('roleStep1').style.display = 'block';
+  document.getElementById('roleStepOwnerPin').style.display = 'none';
+  document.getElementById('roleStepKasirName').style.display = 'none';
+}
+function pickRole(role){
+  document.getElementById('roleStep1').style.display = 'none';
+  if(role === 'owner'){
+    document.getElementById('roleStepOwnerPin').style.display = 'block';
+    document.getElementById('ownerPinInput').value = '';
+    setTimeout(() => document.getElementById('ownerPinInput').focus(), 100);
+  } else {
+    document.getElementById('roleStepKasirName').style.display = 'block';
+    document.getElementById('kasirNameInput').value = getKasirName() === 'Kasir' ? '' : getKasirName();
+    setTimeout(() => document.getElementById('kasirNameInput').focus(), 100);
+  }
+}
+function confirmOwnerPin(){
+  const pin = document.getElementById('ownerPinInput').value.trim();
+  if(pin !== OWNER_PIN){ alert('PIN salah.'); return; }
+  localStorage.setItem('kasirlas_role', 'owner');
+  closeRoleSetup();
+  applyRoleUI();
+  switchTab('new');
+  syncPriceList();
+}
+function confirmKasirName(){
+  const nama = document.getElementById('kasirNameInput').value.trim();
+  if(!nama){ alert('Isi nama dulu ya.'); return; }
+  localStorage.setItem('kasirlas_role', 'kasir');
+  localStorage.setItem('kasirlas_kasir_name', nama);
+  closeRoleSetup();
+  applyRoleUI();
+  switchTab('new');
+  syncPriceList();
+}
+
 /* ===== INIT ===== */
 window.onload = function(){
   if(!localStorage.getItem('kasirlas_settings')){
     saveSettingsToStore(DEFAULT_SETTINGS);
   }
-  if(!localStorage.getItem('kasirlas_pricelist')){
-    savePriceList(DEFAULT_PRICELIST);
-  }
   addItem();
   renderAll();
   renderHistory();
+  applyRoleUI();
+  if(!getRole()){
+    openRoleSetup(false);
+  } else {
+    syncPriceList();
+    if(isOwner()) syncApprovals();
+  }
 };
 </script>
 </body>
