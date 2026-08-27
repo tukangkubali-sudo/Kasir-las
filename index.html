@@ -300,6 +300,30 @@
     font-family:'Oswald'; font-size:11.5px; letter-spacing:0.03em; cursor:pointer; white-space:nowrap;
   }
   .install-banner .close-x{background:none; color:var(--text-muted); font-size:16px; padding:4px 6px;}
+
+  /* print button */
+  .print-btn{
+    background:var(--panel-2); color:var(--spark); border:1.5px solid var(--flame);
+    border-radius:12px; font-family:'Oswald'; font-size:12.5px; letter-spacing:0.03em;
+    display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;
+  }
+  .btn-print{background:var(--panel-3); color:var(--spark); border:1px solid var(--flame) !important;}
+
+  /* thermal receipt print layout (58mm) */
+  #printArea{display:none;}
+  @media print{
+    @page{ size: 58mm auto; margin:0; }
+    body *{ visibility:hidden; }
+    #printArea, #printArea *{ visibility:visible; }
+    #printArea{
+      display:block; position:absolute; top:0; left:0; width:58mm; padding:2mm 2.5mm;
+      font-family:'JetBrains Mono', monospace; font-size:9.5pt; line-height:1.45; color:#000; background:#fff;
+    }
+    #printArea .r-center{text-align:center;}
+    #printArea .r-bold{font-weight:700;}
+    #printArea .r-line{border-top:1px dashed #000; margin:2mm 0;}
+    #printArea .r-row{display:flex; justify-content:space-between; gap:4px;}
+  }
 </style>
 </head>
 <body>
@@ -417,10 +441,13 @@
 </main>
 
 <div class="action-bar" id="actionBarNew">
-  <button class="send-btn" onclick="saveAndSend()">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 3.5A11 11 0 0 0 3.6 17.4L2 22l4.7-1.6a11 11 0 0 0 13.8-16.9zM12 20.2a8.7 8.7 0 0 1-4.4-1.2l-.3-.2-3 1 1-2.9-.2-.3A8.8 8.8 0 1 1 12 20.2zm4.9-6.6c-.3-.1-1.6-.8-1.8-.9-.2-.1-.4-.1-.6.1-.2.3-.7.9-.8 1-.2.2-.3.2-.5.1-1.5-.7-2.5-1.3-3.5-3-.3-.5.3-.4.8-1.4.1-.2 0-.4 0-.5-.1-.1-.6-1.5-.8-2-.2-.5-.4-.5-.6-.5h-.5c-.2 0-.5.1-.7.3-.2.3-1 1-1 2.3 0 1.4 1 2.7 1.1 2.9.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.6-.7 1.9-1.3.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.6-.3z"/></svg>
-    Simpan &amp; Kirim ke WhatsApp
-  </button>
+  <div style="display:flex; gap:8px; max-width:520px; margin:0 auto;">
+    <button class="send-btn" style="flex:2; max-width:none; margin:0;" onclick="saveAndSend()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 3.5A11 11 0 0 0 3.6 17.4L2 22l4.7-1.6a11 11 0 0 0 13.8-16.9zM12 20.2a8.7 8.7 0 0 1-4.4-1.2l-.3-.2-3 1 1-2.9-.2-.3A8.8 8.8 0 1 1 12 20.2zm4.9-6.6c-.3-.1-1.6-.8-1.8-.9-.2-.1-.4-.1-.6.1-.2.3-.7.9-.8 1-.2.2-.3.2-.5.1-1.5-.7-2.5-1.3-3.5-3-.3-.5.3-.4.8-1.4.1-.2 0-.4 0-.5-.1-.1-.6-1.5-.8-2-.2-.5-.4-.5-.6-.5h-.5c-.2 0-.5.1-.7.3-.2.3-1 1-1 2.3 0 1.4 1 2.7 1.1 2.9.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.6-.7 1.9-1.3.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.6-.3z"/></svg>
+      Simpan &amp; Kirim WA
+    </button>
+    <button class="print-btn" style="flex:1;" onclick="saveAndPrint()">🖨️ Cetak</button>
+  </div>
 </div>
 
 <!-- ===== DETAIL MODAL (history) ===== -->
@@ -433,6 +460,7 @@
       <button class="btn-lunas" id="btnMarkLunas" onclick="markLunas()">Tandai Lunas</button>
     </div>
     <div class="modal-actions">
+      <button class="btn-print" onclick="printFromDetail()">🖨️ Cetak Struk</button>
       <button class="btn-del" onclick="deleteTrx()">Hapus Transaksi</button>
     </div>
     <button class="modal-close" onclick="closeDetail()">Tutup</button>
@@ -507,6 +535,9 @@
     <button class="modal-close" onclick="closeProposeModal()">Batal</button>
   </div>
 </div>
+
+<!-- ===== AREA CETAK STRUK (58mm, hanya tampil saat print) ===== -->
+<div id="printArea"></div>
 
 <script>
 const SUPABASE_URL = 'https://jcyemcwjuhgavagqlcqe.supabase.co';
@@ -1087,6 +1118,68 @@ function waLink(phone, text){
   if(p && !p.startsWith('62')) p = '62' + p;
   const encoded = encodeURIComponent(text);
   return p ? `https://wa.me/${p}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+}
+
+/* ===== CETAK STRUK (mini printer 58mm via RawBT) ===== */
+function buildReceiptHTML(data){
+  const s = loadSettings();
+  let h = '';
+  h += `<div class="r-center r-bold">${escapeHtml(s.name.toUpperCase())}</div>`;
+  h += `<div class="r-center">${escapeHtml(s.addr)}</div>`;
+  h += `<div class="r-center">WA: ${escapeHtml(s.phone)}</div>`;
+  h += `<div class="r-line"></div>`;
+  h += `<div>No: ${escapeHtml(data.no)}</div>`;
+  h += `<div>Tgl: ${escapeHtml(data.date)}</div>`;
+  h += `<div>Plgn: ${escapeHtml(data.custName || '-')}</div>`;
+  h += `<div class="r-line"></div>`;
+  data.items.forEach((it, idx) => {
+    h += `<div>${idx+1}. ${escapeHtml(it.name || '(tanpa nama)')}</div>`;
+    h += `<div class="r-row"><span>${it.qty} x ${rupiah(it.price)}</span><span>${rupiah(it.qty*it.price)}</span></div>`;
+  });
+  h += `<div class="r-line"></div>`;
+  h += `<div class="r-row r-bold"><span>TOTAL</span><span>${rupiah(data.total)}</span></div>`;
+  if(data.payType === 'dp'){
+    h += `<div class="r-row"><span>DP Dibayar</span><span>${rupiah(data.dp)}</span></div>`;
+    h += `<div class="r-row r-bold"><span>SISA BAYAR</span><span>${rupiah(data.sisa)}</span></div>`;
+  } else {
+    h += `<div class="r-center r-bold">LUNAS</div>`;
+  }
+  if(data.note){
+    h += `<div class="r-line"></div>`;
+    h += `<div>Catatan: ${escapeHtml(data.note)}</div>`;
+  }
+  h += `<div class="r-line"></div>`;
+  h += `<div class="r-center">Terima kasih 🙏</div>`;
+  return h;
+}
+function printReceipt(data){
+  document.getElementById('printArea').innerHTML = buildReceiptHTML(data);
+  setTimeout(() => window.print(), 80);
+}
+function saveAndPrint(){
+  if(items.length === 0 || items.every(it => !it.name && !it.qty && !it.price)){
+    alert('Tambahkan minimal 1 item barang/jasa dulu ya.');
+    return;
+  }
+  const data = currentData();
+  data.no = getNextInvoiceNo();
+  data.id = 'trx_' + Date.now();
+  data.createdAt = Date.now();
+  data.status = data.payType === 'dp' ? 'dp' : 'lunas';
+
+  const history = getHistory();
+  history.unshift(data);
+  saveHistory(history);
+
+  printReceipt(data);
+  resetForm();
+  renderHistory();
+}
+function printFromDetail(){
+  const history = getHistory();
+  const h = history.find(x => x.id === currentDetailId);
+  if(!h) return;
+  printReceipt(h);
 }
 
 function saveAndSend(){
