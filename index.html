@@ -700,13 +700,15 @@ function resetPriceList(){
 async function updatePLPrice(id, value){
   if(!isOwner()) return;
   const harga = parseFloat(value) || 0;
-  await sb.from('price_list').update({harga, updated_at: new Date().toISOString()}).eq('id', id);
+  const { error } = await sb.from('price_list').update({harga, updated_at: new Date().toISOString()}).eq('id', id);
+  if(error){ alert('Gagal update harga: ' + error.message); return; }
   await syncPriceList();
 }
 async function deletePLItem(id){
   if(!isOwner()) return;
   if(!confirm('Hapus item harga ini?')) return;
-  await sb.from('price_list').delete().eq('id', id);
+  const { error } = await sb.from('price_list').delete().eq('id', id);
+  if(error){ alert('Gagal hapus item: ' + error.message); return; }
   await syncPriceList();
 }
 async function addPLItem(){
@@ -717,7 +719,8 @@ async function addPLItem(){
   const sub = document.getElementById('plNewSub').value.trim() || 'Lainnya';
   const satuan = kategori === 'titik' ? 'titik' : (document.getElementById('plNewSatuan').value.trim() || 'meter');
   if(!nama){ alert('Isi nama pekerjaan dulu ya.'); return; }
-  await sb.from('price_list').insert({id: 'c' + Date.now(), kategori, sub, nama, satuan, harga});
+  const { error } = await sb.from('price_list').insert({id: 'c' + Date.now(), kategori, sub, nama, satuan, harga});
+  if(error){ alert('Gagal tambah item: ' + error.message); return; }
   document.getElementById('plNewNama').value = '';
   document.getElementById('plNewHarga').value = '';
   document.getElementById('plNewSub').value = '';
@@ -753,12 +756,13 @@ async function submitProposeEdit(){
   if(!harga){ alert('Isi harga usulan dulu ya.'); return; }
   const t = proposeTargetItem;
   if(!t) return;
-  await sb.from('price_requests').insert({
+  const { error } = await sb.from('price_requests').insert({
     type: t.mode === 'add' ? 'add' : 'edit',
     target_id: t.mode === 'edit' ? t.id : null,
     kategori: t.kategori, sub: t.sub, nama: t.nama, satuan: t.satuan, harga,
     requested_by: getKasirName()
   });
+  if(error){ alert('Gagal kirim usulan: ' + error.message); return; }
   closeProposeModal();
   alert('Usulan terkirim, menunggu persetujuan owner.');
   syncMyRequests();
@@ -836,19 +840,23 @@ function renderApprovals(){
 async function approveRequest(id){
   const r = approvalsCache.find(x => x.id === id);
   if(!r) return;
+  let result;
   if(r.type === 'add'){
-    await sb.from('price_list').insert({id:'c'+Date.now(), kategori:r.kategori, sub:r.sub, nama:r.nama, satuan:r.satuan, harga:r.harga});
+    result = await sb.from('price_list').insert({id:'c'+Date.now(), kategori:r.kategori, sub:r.sub, nama:r.nama, satuan:r.satuan, harga:r.harga});
   } else if(r.type === 'edit'){
-    await sb.from('price_list').update({harga:r.harga, updated_at:new Date().toISOString()}).eq('id', r.target_id);
+    result = await sb.from('price_list').update({harga:r.harga, updated_at:new Date().toISOString()}).eq('id', r.target_id);
   } else if(r.type === 'delete'){
-    await sb.from('price_list').delete().eq('id', r.target_id);
+    result = await sb.from('price_list').delete().eq('id', r.target_id);
   }
-  await sb.from('price_requests').update({status:'approved', reviewed_at:new Date().toISOString()}).eq('id', id);
+  if(result && result.error){ alert('Gagal terapkan perubahan: ' + result.error.message); return; }
+  const { error } = await sb.from('price_requests').update({status:'approved', reviewed_at:new Date().toISOString()}).eq('id', id);
+  if(error){ alert('Gagal update status usulan: ' + error.message); return; }
   await syncApprovals();
   await syncPriceList();
 }
 async function rejectRequest(id){
-  await sb.from('price_requests').update({status:'rejected', reviewed_at:new Date().toISOString()}).eq('id', id);
+  const { error } = await sb.from('price_requests').update({status:'rejected', reviewed_at:new Date().toISOString()}).eq('id', id);
+  if(error){ alert('Gagal tolak usulan: ' + error.message); return; }
   await syncApprovals();
 }
 function renderPriceList(){
@@ -1200,7 +1208,11 @@ async function saveAndPrint(){
   data.createdAt = Date.now();
   data.status = data.payType === 'dp' ? 'dp' : 'lunas';
 
-  try{ await sb.from('transactions').insert(trxToRow(data)); }catch(e){}
+  const { error } = await sb.from('transactions').insert(trxToRow(data));
+  if(error){
+    alert('Gagal menyimpan transaksi ke server: ' + error.message + '\n\nCek koneksi internet atau hubungi owner untuk cek pengaturan Supabase.');
+    return;
+  }
   await syncHistory();
 
   printReceipt(data);
@@ -1223,7 +1235,11 @@ async function saveAndSend(){
   data.createdAt = Date.now();
   data.status = data.payType === 'dp' ? 'dp' : 'lunas';
 
-  try{ await sb.from('transactions').insert(trxToRow(data)); }catch(e){}
+  const { error } = await sb.from('transactions').insert(trxToRow(data));
+  if(error){
+    alert('Gagal menyimpan transaksi ke server: ' + error.message + '\n\nCek koneksi internet atau hubungi owner untuk cek pengaturan Supabase.');
+    return;
+  }
   await syncHistory();
 
   const text = buildInvoiceText(data);
@@ -1309,17 +1325,15 @@ function resendWA(){
 async function markLunas(){
   const h = historyCache.find(x => x.id === currentDetailId);
   if(!h) return;
-  try{
-    await sb.from('transactions').update({status:'lunas', dp:h.total, sisa:0}).eq('id', h.id);
-  }catch(e){ alert('Gagal update, cek koneksi internet.'); return; }
+  const { error } = await sb.from('transactions').update({status:'lunas', dp:h.total, sisa:0}).eq('id', h.id);
+  if(error){ alert('Gagal update: ' + error.message); return; }
   closeDetail();
   await syncHistory();
 }
 async function deleteTrx(){
   if(!confirm('Hapus transaksi ini dari riwayat?')) return;
-  try{
-    await sb.from('transactions').delete().eq('id', currentDetailId);
-  }catch(e){ alert('Gagal hapus, cek koneksi internet.'); return; }
+  const { error } = await sb.from('transactions').delete().eq('id', currentDetailId);
+  if(error){ alert('Gagal hapus: ' + error.message); return; }
   closeDetail();
   await syncHistory();
 }
