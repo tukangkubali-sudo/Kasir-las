@@ -411,6 +411,7 @@
 
 <!-- ===== TAB: RIWAYAT ===== -->
 <section id="tabHist" style="display:none;">
+  <div class="refresh-link" onclick="syncHistory(true)">🔄 Segarkan riwayat</div>
   <div id="histList"></div>
 </section>
 
@@ -550,6 +551,7 @@ let payType = 'lunas';
 let itemIdCounter = 0;
 let currentDetailId = null;
 let priceListCache = [];
+let historyCache = [];
 let myRequestsCache = [];
 let approvalsCache = [];
 let proposeTargetItem = null; // {mode:'edit', id, kategori, sub, nama, satuan, hargaLama} or {mode:'add'}
@@ -620,11 +622,36 @@ function saveSettingsToStore(s){
   localStorage.setItem('kasirlas_settings', JSON.stringify(s));
 }
 function getHistory(){
-  const h = localStorage.getItem('kasirlas_history');
-  return h ? JSON.parse(h) : [];
+  return historyCache;
 }
-function saveHistory(h){
-  localStorage.setItem('kasirlas_history', JSON.stringify(h));
+async function syncHistory(showAlert){
+  try{
+    const { data, error } = await sb.from('transactions').select('*').order('created_at', {ascending:false}).limit(200);
+    if(error) throw error;
+    historyCache = data.map(rowToTrx);
+    localStorage.setItem('kasirlas_history_cache', JSON.stringify(historyCache));
+  } catch(e){
+    const cached = localStorage.getItem('kasirlas_history_cache');
+    historyCache = cached ? JSON.parse(cached) : [];
+    if(showAlert) alert('Tidak bisa tersambung ke internet. Menampilkan riwayat tersimpan terakhir.');
+  }
+  renderHistory();
+}
+function rowToTrx(r){
+  return {
+    id: r.id, no: r.no, custName: r.cust_name, custPhone: r.cust_phone,
+    items: r.items || [], total: r.total, dp: r.dp, sisa: r.sisa,
+    payType: r.pay_type, status: r.status, note: r.note, date: r.date,
+    createdAt: r.created_at, createdBy: r.created_by
+  };
+}
+function trxToRow(data){
+  return {
+    id: data.id, no: data.no, cust_name: data.custName, cust_phone: data.custPhone,
+    items: data.items, total: data.total, dp: data.dp, sisa: data.sisa,
+    pay_type: data.payType, status: data.status, note: data.note, date: data.date,
+    created_at: data.createdAt, created_by: isOwner() ? 'Owner' : getKasirName()
+  };
 }
 function loadPriceList(){
   return priceListCache;
@@ -893,10 +920,16 @@ function renderPriceList(){
   `);
 }
 
-function getNextInvoiceNo(){
-  let n = parseInt(localStorage.getItem('kasirlas_counter') || '0', 10) + 1;
-  localStorage.setItem('kasirlas_counter', String(n));
-  return 'INV' + String(n).padStart(4, '0');
+async function getNextInvoiceNo(){
+  try{
+    const { data, error } = await sb.rpc('next_invoice_no');
+    if(error) throw error;
+    return data;
+  } catch(e){
+    let n = parseInt(localStorage.getItem('kasirlas_counter') || '0', 10) + 1;
+    localStorage.setItem('kasirlas_counter', String(n));
+    return 'INVX' + String(n).padStart(4, '0');
+  }
 }
 function rupiah(n){
   n = Math.round(n || 0);
@@ -1156,52 +1189,47 @@ function printReceipt(data){
   document.getElementById('printArea').innerHTML = buildReceiptHTML(data);
   setTimeout(() => window.print(), 80);
 }
-function saveAndPrint(){
+async function saveAndPrint(){
   if(items.length === 0 || items.every(it => !it.name && !it.qty && !it.price)){
     alert('Tambahkan minimal 1 item barang/jasa dulu ya.');
     return;
   }
   const data = currentData();
-  data.no = getNextInvoiceNo();
+  data.no = await getNextInvoiceNo();
   data.id = 'trx_' + Date.now();
   data.createdAt = Date.now();
   data.status = data.payType === 'dp' ? 'dp' : 'lunas';
 
-  const history = getHistory();
-  history.unshift(data);
-  saveHistory(history);
+  try{ await sb.from('transactions').insert(trxToRow(data)); }catch(e){}
+  await syncHistory();
 
   printReceipt(data);
   resetForm();
-  renderHistory();
 }
 function printFromDetail(){
-  const history = getHistory();
-  const h = history.find(x => x.id === currentDetailId);
+  const h = historyCache.find(x => x.id === currentDetailId);
   if(!h) return;
   printReceipt(h);
 }
 
-function saveAndSend(){
+async function saveAndSend(){
   if(items.length === 0 || items.every(it => !it.name && !it.qty && !it.price)){
     alert('Tambahkan minimal 1 item barang/jasa dulu ya.');
     return;
   }
   const data = currentData();
-  data.no = getNextInvoiceNo();
+  data.no = await getNextInvoiceNo();
   data.id = 'trx_' + Date.now();
   data.createdAt = Date.now();
   data.status = data.payType === 'dp' ? 'dp' : 'lunas';
 
-  const history = getHistory();
-  history.unshift(data);
-  saveHistory(history);
+  try{ await sb.from('transactions').insert(trxToRow(data)); }catch(e){}
+  await syncHistory();
 
   const text = buildInvoiceText(data);
   window.open(waLink(data.custPhone, text), '_blank');
 
   resetForm();
-  renderHistory();
 }
 
 function resetForm(){
@@ -1228,7 +1256,7 @@ function switchTab(t){
   document.getElementById('tabHistBtn').classList.toggle('active', t==='hist');
   document.getElementById('tabPriceBtn').classList.toggle('active', t==='price');
   document.getElementById('tabApprovalBtn').classList.toggle('active', t==='approval');
-  if(t==='hist') renderHistory();
+  if(t==='hist') syncHistory();
   if(t==='price'){ syncPriceList(); if(!isOwner()) syncMyRequests(); }
   if(t==='approval') syncApprovals();
 }
@@ -1236,9 +1264,9 @@ function switchTab(t){
 /* ===== HISTORY ===== */
 function renderHistory(){
   const wrap = document.getElementById('histList');
-  const history = getHistory();
+  const history = historyCache;
   if(history.length === 0){
-    wrap.innerHTML = '<div class="empty-state">Belum ada transaksi tersimpan.<br>Transaksi yang kamu simpan akan muncul di sini.</div>';
+    wrap.innerHTML = '<div class="empty-state">Belum ada transaksi tersimpan.<br>Transaksi yang kamu/kasir simpan akan muncul di sini.</div>';
     return;
   }
   wrap.innerHTML = history.map(h => `
@@ -1246,7 +1274,7 @@ function renderHistory(){
       <div class="l">
         <div class="no">${h.no}</div>
         <div class="name">${escapeHtml(h.custName) || 'Tanpa nama'}</div>
-        <div class="date">${h.date}</div>
+        <div class="date">${h.date}${h.createdBy ? ' · oleh ' + escapeHtml(h.createdBy) : ''}</div>
       </div>
       <div class="r">
         <div class="total mono">${rupiah(h.total)}</div>
@@ -1258,8 +1286,7 @@ function renderHistory(){
 
 function openDetail(id){
   currentDetailId = id;
-  const history = getHistory();
-  const h = history.find(x => x.id === id);
+  const h = historyCache.find(x => x.id === id);
   if(!h) return;
   document.getElementById('detailTitle').textContent = h.no + ' — ' + (h.custName || 'Tanpa nama');
   document.getElementById('detailPreview').textContent = buildInvoiceText(h);
@@ -1274,30 +1301,27 @@ function closeModalBg(e){
   if(e.target.classList.contains('modal-bg')) e.target.classList.remove('show');
 }
 function resendWA(){
-  const history = getHistory();
-  const h = history.find(x => x.id === currentDetailId);
+  const h = historyCache.find(x => x.id === currentDetailId);
   if(!h) return;
   const text = buildInvoiceText(h);
   window.open(waLink(h.custPhone, text), '_blank');
 }
-function markLunas(){
-  let history = getHistory();
-  const idx = history.findIndex(x => x.id === currentDetailId);
-  if(idx === -1) return;
-  history[idx].status = 'lunas';
-  history[idx].dp = history[idx].total;
-  history[idx].sisa = 0;
-  saveHistory(history);
+async function markLunas(){
+  const h = historyCache.find(x => x.id === currentDetailId);
+  if(!h) return;
+  try{
+    await sb.from('transactions').update({status:'lunas', dp:h.total, sisa:0}).eq('id', h.id);
+  }catch(e){ alert('Gagal update, cek koneksi internet.'); return; }
   closeDetail();
-  renderHistory();
+  await syncHistory();
 }
-function deleteTrx(){
+async function deleteTrx(){
   if(!confirm('Hapus transaksi ini dari riwayat?')) return;
-  let history = getHistory();
-  history = history.filter(x => x.id !== currentDetailId);
-  saveHistory(history);
+  try{
+    await sb.from('transactions').delete().eq('id', currentDetailId);
+  }catch(e){ alert('Gagal hapus, cek koneksi internet.'); return; }
   closeDetail();
-  renderHistory();
+  await syncHistory();
 }
 
 /* ===== SETTINGS ===== */
@@ -1373,6 +1397,8 @@ function confirmOwnerPin(){
   applyRoleUI();
   switchTab('new');
   syncPriceList();
+  syncHistory();
+  syncApprovals();
 }
 function confirmKasirName(){
   const nama = document.getElementById('kasirNameInput').value.trim();
@@ -1383,6 +1409,7 @@ function confirmKasirName(){
   applyRoleUI();
   switchTab('new');
   syncPriceList();
+  syncHistory();
 }
 
 /* ===== INSTALL APP (PWA) ===== */
@@ -1440,6 +1467,7 @@ window.onload = function(){
     openRoleSetup(false);
   } else {
     syncPriceList();
+    syncHistory();
     if(isOwner()) syncApprovals();
   }
 };
