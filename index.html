@@ -255,7 +255,7 @@
   .header-right{margin-left:auto; text-align:right;}
   .role-switch-link{font-size:9.5px; color:var(--text-muted); text-decoration:underline; cursor:pointer; margin-top:3px;}
   .sync-note{font-size:10.5px; color:var(--text-muted); text-align:center; margin:-4px 0 12px;}
-  .refresh-link{font-size:10.5px; color:var(--spark); text-decoration:underline; cursor:pointer; text-align:center; display:block; margin-bottom:10px;}
+  .refresh-link{font-size:11px; color:var(--spark); text-decoration:underline; cursor:pointer; text-align:center; display:block; margin-bottom:10px; padding:10px 8px; -webkit-tap-highlight-color:rgba(255,107,26,0.25);}
 
   /* role setup */
   .role-pick-btn{
@@ -411,7 +411,7 @@
 
 <!-- ===== TAB: RIWAYAT ===== -->
 <section id="tabHist" style="display:none;">
-  <div class="refresh-link" onclick="syncHistory(true)">🔄 Segarkan riwayat</div>
+  <div class="refresh-link" onclick="this.textContent='⏳ Menyegarkan...'; syncHistory(true).then(()=>{this.textContent='🔄 Segarkan riwayat';})">🔄 Segarkan riwayat</div>
   <div id="histList"></div>
 </section>
 
@@ -422,7 +422,7 @@
     <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:10px;">
       Perkiraan harga umum bengkel las di Bali. <span id="plRoleNote"></span>
     </div>
-    <div class="refresh-link" onclick="syncPriceList(true)">🔄 Segarkan daftar harga</div>
+    <div class="refresh-link" onclick="this.textContent='⏳ Menyegarkan...'; syncPriceList(true).then(()=>{this.textContent='🔄 Segarkan daftar harga';})">🔄 Segarkan daftar harga</div>
     <input type="text" id="plSearchInput" placeholder="🔍 Cari jenis pekerjaan..." oninput="renderPriceList()" style="margin-bottom:12px;">
     <div id="priceListWrap"></div>
   </div>
@@ -434,7 +434,7 @@
 <section id="tabApproval" style="display:none;">
   <div class="card">
     <h2>Usulan Menunggu Persetujuan</h2>
-    <div class="refresh-link" onclick="syncApprovals(true)">🔄 Segarkan usulan</div>
+    <div class="refresh-link" onclick="this.textContent='⏳ Menyegarkan...'; syncApprovals(true).then(()=>{this.textContent='🔄 Segarkan usulan';})">🔄 Segarkan usulan</div>
     <div id="approvalWrap"></div>
   </div>
 </section>
@@ -1272,6 +1272,7 @@ function switchTab(t){
   document.getElementById('tabHistBtn').classList.toggle('active', t==='hist');
   document.getElementById('tabPriceBtn').classList.toggle('active', t==='price');
   document.getElementById('tabApprovalBtn').classList.toggle('active', t==='approval');
+  window.scrollTo(0, 0);
   if(t==='hist') syncHistory();
   if(t==='price'){ syncPriceList(); if(!isOwner()) syncMyRequests(); }
   if(t==='approval') syncApprovals();
