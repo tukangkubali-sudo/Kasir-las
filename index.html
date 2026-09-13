@@ -7,7 +7,7 @@
 
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1b1e21">
+<meta name="theme-color" content="#ffffff">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -20,30 +20,29 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
-    --bg:#1b1e21;
-    --panel:#24282c;
-    --panel-2:#2e3338;
-    --panel-3:#33393f;
+    --bg:#f4f5f7;
+    --panel:#ffffff;
+    --panel-2:#f1f2f5;
+    --panel-3:#e9ebef;
     --flame:#ff6b1a;
-    --flame-dim:#c9541a;
-    --spark:#ffc94d;
-    --text:#eceeef;
-    --text-muted:#9aa3ab;
-    --success:#4caf7d;
-    --warn:#e85d4a;
-    --border:#383e44;
-    --radius:14px;
+    --flame-dim:#e0580f;
+    --spark:#ff8a3d;
+    --text:#1a1d1f;
+    --text-muted:#8a909c;
+    --success:#1fa971;
+    --warn:#e5484d;
+    --border:#e7e8ec;
+    --radius:16px;
+    --shadow:0 2px 10px rgba(20,20,30,0.06);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
-    background:
-      radial-gradient(ellipse at top, #23272b 0%, #1b1e21 55%),
-      repeating-linear-gradient(135deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 2px, transparent 2px, transparent 5px);
+    background:var(--bg);
     color:var(--text);
     font-family:'Inter',system-ui,sans-serif;
     min-height:100vh;
-    padding-bottom:96px;
+    padding-bottom:180px;
     -webkit-tap-highlight-color:transparent;
   }
   h1,h2,h3,.disp{font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:0.03em;}
@@ -52,40 +51,53 @@
   /* header */
   header.top{
     position:sticky; top:0; z-index:20;
-    background:linear-gradient(180deg,#202327 0%, #1c1f22 100%);
+    background:#ffffff;
     border-bottom:1px solid var(--border);
-    padding:14px 16px 12px;
+    padding:14px 16px;
     display:flex; align-items:center; gap:10px;
+    box-shadow:var(--shadow);
   }
   .flame-mark{
-    width:34px; height:34px; flex-shrink:0;
+    width:38px; height:38px; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
     background:radial-gradient(circle at 35% 30%, var(--spark), var(--flame) 60%, var(--flame-dim) 100%);
-    border-radius:9px;
-    box-shadow:0 0 14px rgba(255,107,26,0.45);
+    border-radius:12px;
+    box-shadow:0 3px 10px rgba(255,107,26,0.35);
   }
-  .flame-mark svg{width:19px;height:19px;}
-  header.top .titles{line-height:1.1;}
-  header.top h1{font-size:16.5px; margin:0; color:#fff;}
+  .flame-mark svg{width:20px;height:20px;}
+  header.top .titles{line-height:1.15;}
+  header.top h1{font-size:16.5px; margin:0; color:var(--text);}
   header.top .sub{font-size:11px; color:var(--text-muted); font-family:'Inter'; text-transform:none; letter-spacing:0; margin-top:2px;}
 
-  /* tabs */
-  .tabs{display:flex; gap:0; padding:10px 16px 0; background:var(--bg); position:sticky; top:62px; z-index:19;}
-  .tab{
-    flex:1; text-align:center; padding:10px 0; font-family:'Oswald'; font-size:13px; letter-spacing:0.04em;
-    color:var(--text-muted); border-bottom:2px solid var(--border); cursor:pointer;
+  /* bottom navigation (Gojek/Grab style) */
+  .bottom-nav{
+    display:flex; position:fixed; left:0; right:0; bottom:0; z-index:30;
+    background:#ffffff; border-top:1px solid var(--border);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    box-shadow:0 -2px 12px rgba(20,20,30,0.06);
   }
-  .tab.active{color:var(--spark); border-bottom:2px solid var(--flame);}
+  .nav-btn{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
+    padding:6px 2px; font-family:'Inter'; font-size:10px; font-weight:600; letter-spacing:0.01em;
+    color:var(--text-muted); cursor:pointer; border-radius:12px; position:relative;
+  }
+  .nav-btn .nav-icon{font-size:19px; line-height:1;}
+  .nav-btn.active{color:var(--flame);}
+  .nav-btn .nav-badge{
+    position:absolute; top:2px; right:18%; background:var(--warn); color:#fff; font-size:9px; font-weight:700;
+    border-radius:20px; padding:1px 5px; min-width:15px; text-align:center;
+  }
 
   main{padding:14px 14px 20px; max-width:520px; margin:0 auto;}
   .card{
-    background:linear-gradient(180deg, var(--panel) 0%, #212528 100%);
+    background:var(--panel);
     border:1px solid var(--border);
     border-radius:var(--radius);
-    padding:14px;
+    padding:16px;
     margin-bottom:14px;
+    box-shadow:var(--shadow);
   }
-  .card h2{font-size:12.5px; color:var(--spark); margin:0 0 10px; letter-spacing:0.06em;}
+  .card h2{font-size:12.5px; color:var(--flame); margin:0 0 10px; letter-spacing:0.06em; font-family:'Oswald';}
 
   label{display:block; font-size:11.5px; color:var(--text-muted); margin-bottom:5px; margin-top:10px;}
   label:first-of-type{margin-top:0;}
@@ -166,17 +178,17 @@
   .seam .beads span{width:5px; height:5px; background:var(--flame-dim); border-radius:50%; opacity:0.7;}
 
   /* payment toggle */
-  .pay-toggle{display:flex; gap:8px;}
+  .pay-toggle{display:flex; gap:6px;}
   .pay-toggle button{
-    flex:1; padding:10px; border-radius:9px; border:1px solid var(--border);
-    background:var(--panel-2); color:var(--text-muted); font-family:'Oswald'; font-size:12.5px;
-    letter-spacing:0.04em; cursor:pointer;
+    flex:1; padding:10px 4px; border-radius:9px; border:1px solid var(--border);
+    background:var(--panel-2); color:var(--text-muted); font-family:'Oswald'; font-size:11.5px;
+    letter-spacing:0.02em; cursor:pointer;
   }
   .pay-toggle button.active{background:rgba(255,107,26,0.14); border-color:var(--flame); color:var(--spark);}
 
   .totals-box{margin-top:6px;}
   .trow{display:flex; justify-content:space-between; font-size:14px; padding:5px 0; color:var(--text-muted);}
-  .trow.grand{font-size:19px; color:#fff; font-family:'Oswald'; padding-top:10px; border-top:1px solid var(--border); margin-top:6px;}
+  .trow.grand{font-size:19px; color:var(--text); font-family:'Oswald'; padding-top:10px; border-top:1px solid var(--border); margin-top:6px;}
   .trow.grand .mono{color:var(--spark);}
   .trow.sisa .mono{color:var(--warn); font-weight:700;}
   .trow.dp .mono{color:var(--success);}
@@ -191,8 +203,8 @@
 
   /* sticky action bar */
   .action-bar{
-    position:fixed; bottom:0; left:0; right:0; z-index:25;
-    background:linear-gradient(0deg,#1c1f22 60%, rgba(28,31,34,0));
+    position:fixed; bottom:64px; left:0; right:0; z-index:25;
+    background:linear-gradient(0deg, var(--bg) 65%, rgba(244,245,247,0));
     padding:14px 14px 16px; padding-top:22px;
   }
   .send-btn{
@@ -348,13 +360,6 @@
   </div>
 </header>
 
-<div class="tabs">
-  <div class="tab active" id="tabNewBtn" onclick="switchTab('new')">Transaksi Baru</div>
-  <div class="tab" id="tabHistBtn" onclick="switchTab('hist')">Riwayat</div>
-  <div class="tab" id="tabPriceBtn" onclick="switchTab('price')">Daftar Harga</div>
-  <div class="tab" id="tabApprovalBtn" onclick="switchTab('approval')" style="display:none;">Persetujuan<span class="tab-badge-count" id="approvalCount" style="display:none;"></span></div>
-</div>
-
 <main>
 
 <!-- ===== TAB: TRANSAKSI BARU ===== -->
@@ -366,6 +371,8 @@
     <input type="text" id="custName" placeholder="Contoh: Pak Wayan">
     <label>No. WhatsApp Pelanggan (opsional)</label>
     <input type="tel" id="custPhone" placeholder="08xxxxxxxxxx">
+    <label>Alamat Pengiriman (opsional)</label>
+    <textarea id="custAddr" placeholder="Contoh: Jln Merdeka No. 12, Denpasar" style="min-height:44px;"></textarea>
   </div>
 
   <div class="card">
@@ -378,7 +385,8 @@
     <h2>Pembayaran</h2>
     <div class="pay-toggle">
       <button id="btnLunas" class="active" onclick="setPayType('lunas')">Lunas</button>
-      <button id="btnDp" onclick="setPayType('dp')">DP / Uang Muka</button>
+      <button id="btnDp" onclick="setPayType('dp')">DP</button>
+      <button id="btnBelumBayar" onclick="setPayType('belum_bayar')">Belum Bayar</button>
     </div>
     <div id="dpInputWrap" style="display:none;">
       <label>Jumlah DP Diterima (Rp)</label>
@@ -450,6 +458,22 @@
     <button class="print-btn" style="flex:1;" onclick="saveAndPrint()">🖨️ Cetak</button>
   </div>
 </div>
+
+<nav class="bottom-nav">
+  <div class="nav-btn active" id="tabNewBtn" onclick="switchTab('new')">
+    <span class="nav-icon">📝</span><span>Transaksi</span>
+  </div>
+  <div class="nav-btn" id="tabHistBtn" onclick="switchTab('hist')">
+    <span class="nav-icon">🧾</span><span>Riwayat</span>
+  </div>
+  <div class="nav-btn" id="tabPriceBtn" onclick="switchTab('price')">
+    <span class="nav-icon">💰</span><span>Harga</span>
+  </div>
+  <div class="nav-btn" id="tabApprovalBtn" onclick="switchTab('approval')" style="display:none;">
+    <span class="nav-icon">✅</span><span>Approval</span>
+    <span class="nav-badge" id="approvalCount" style="display:none;"></span>
+  </div>
+</nav>
 
 <!-- ===== DETAIL MODAL (history) ===== -->
 <div class="modal-bg" id="detailModalBg" onclick="closeModalBg(event)">
@@ -639,7 +663,7 @@ async function syncHistory(showAlert){
 }
 function rowToTrx(r){
   return {
-    id: r.id, no: r.no, custName: r.cust_name, custPhone: r.cust_phone,
+    id: r.id, no: r.no, custName: r.cust_name, custPhone: r.cust_phone, custAddr: r.cust_address,
     items: r.items || [], total: r.total, dp: r.dp, sisa: r.sisa,
     payType: r.pay_type, status: r.status, note: r.note, date: r.date,
     createdAt: r.created_at, createdBy: r.created_by
@@ -647,7 +671,7 @@ function rowToTrx(r){
 }
 function trxToRow(data){
   return {
-    id: data.id, no: data.no, cust_name: data.custName, cust_phone: data.custPhone,
+    id: data.id, no: data.no, cust_name: data.custName, cust_phone: data.custPhone, cust_address: data.custAddr,
     items: data.items, total: data.total, dp: data.dp, sisa: data.sisa,
     pay_type: data.payType, status: data.status, note: data.note, date: data.date,
     created_at: data.createdAt, created_by: isOwner() ? 'Owner' : getKasirName()
@@ -1071,6 +1095,7 @@ function setPayType(t){
   payType = t;
   document.getElementById('btnLunas').classList.toggle('active', t==='lunas');
   document.getElementById('btnDp').classList.toggle('active', t==='dp');
+  document.getElementById('btnBelumBayar').classList.toggle('active', t==='belum_bayar');
   document.getElementById('dpInputWrap').style.display = t==='dp' ? 'block' : 'none';
   renderAll();
 }
@@ -1079,6 +1104,7 @@ function calcTotal(){
   return items.reduce((s,it) => s + (it.qty*it.price), 0);
 }
 function calcDp(){
+  if(payType === 'belum_bayar') return 0;
   if(payType !== 'dp') return 0;
   return parseFloat(document.getElementById('dpAmount').value) || 0;
 }
@@ -1096,6 +1122,9 @@ function buildInvoiceText(data){
   lines.push(`INVOICE #${data.no}`);
   lines.push(`Tanggal: ${data.date}`);
   lines.push(`Pelanggan: ${data.custName || '-'}`);
+  if(data.custAddr){
+    lines.push(`Alamat: ${data.custAddr}`);
+  }
   lines.push('');
   lines.push('Rincian:');
   data.items.forEach((it, idx) => {
@@ -1106,6 +1135,9 @@ function buildInvoiceText(data){
   if(data.payType === 'dp'){
     lines.push(`DP Dibayar: ${rupiah(data.dp)}`);
     lines.push(`Sisa Bayar: ${rupiah(data.sisa)}`);
+  } else if(data.payType === 'belum_bayar'){
+    lines.push(`Status: BELUM BAYAR`);
+    lines.push(`Total yang harus dibayar: ${rupiah(data.total)}`);
   } else {
     lines.push(`Status: LUNAS`);
   }
@@ -1121,10 +1153,11 @@ function buildInvoiceText(data){
 function currentData(){
   const total = calcTotal();
   const dp = calcDp();
-  const sisa = calcSisa(total, dp);
+  const sisa = payType === 'belum_bayar' ? total : calcSisa(total, dp);
   return {
     custName: document.getElementById('custName').value.trim(),
     custPhone: document.getElementById('custPhone').value.trim(),
+    custAddr: document.getElementById('custAddr').value.trim(),
     items: items,
     total, dp, sisa,
     payType,
@@ -1136,12 +1169,12 @@ function currentData(){
 function renderAll(){
   const total = calcTotal();
   const dp = calcDp();
-  const sisa = calcSisa(total, dp);
+  const sisa = payType === 'belum_bayar' ? total : calcSisa(total, dp);
 
   document.getElementById('sumSubtotal').textContent = rupiah(total);
   document.getElementById('sumTotal').textContent = rupiah(total);
   document.getElementById('rowDp').style.display = payType==='dp' ? 'flex' : 'none';
-  document.getElementById('rowSisa').style.display = payType==='dp' ? 'flex' : 'none';
+  document.getElementById('rowSisa').style.display = (payType==='dp' || payType==='belum_bayar') ? 'flex' : 'none';
   document.getElementById('sumDp').textContent = rupiah(dp);
   document.getElementById('sumSisa').textContent = rupiah(sisa);
 
@@ -1172,6 +1205,9 @@ function buildReceiptHTML(data){
   h += `<div>No: ${escapeHtml(data.no)}</div>`;
   h += `<div>Tgl: ${escapeHtml(data.date)}</div>`;
   h += `<div>Plgn: ${escapeHtml(data.custName || '-')}</div>`;
+  if(data.custAddr){
+    h += `<div>Alamat: ${escapeHtml(data.custAddr)}</div>`;
+  }
   h += `<div class="r-line"></div>`;
   data.items.forEach((it, idx) => {
     h += `<div>${idx+1}. ${escapeHtml(it.name || '(tanpa nama)')}</div>`;
@@ -1182,6 +1218,8 @@ function buildReceiptHTML(data){
   if(data.payType === 'dp'){
     h += `<div class="r-row"><span>DP Dibayar</span><span>${rupiah(data.dp)}</span></div>`;
     h += `<div class="r-row r-bold"><span>SISA BAYAR</span><span>${rupiah(data.sisa)}</span></div>`;
+  } else if(data.payType === 'belum_bayar'){
+    h += `<div class="r-center r-bold">BELUM BAYAR</div>`;
   } else {
     h += `<div class="r-center r-bold">LUNAS</div>`;
   }
@@ -1206,7 +1244,7 @@ async function saveAndPrint(){
   data.no = await getNextInvoiceNo();
   data.id = 'trx_' + Date.now();
   data.createdAt = Date.now();
-  data.status = data.payType === 'dp' ? 'dp' : 'lunas';
+  data.status = data.payType;
 
   const { error } = await sb.from('transactions').insert(trxToRow(data));
   if(error){
@@ -1233,7 +1271,7 @@ async function saveAndSend(){
   data.no = await getNextInvoiceNo();
   data.id = 'trx_' + Date.now();
   data.createdAt = Date.now();
-  data.status = data.payType === 'dp' ? 'dp' : 'lunas';
+  data.status = data.payType;
 
   const { error } = await sb.from('transactions').insert(trxToRow(data));
   if(error){
@@ -1252,6 +1290,7 @@ function resetForm(){
   items = [];
   document.getElementById('custName').value = '';
   document.getElementById('custPhone').value = '';
+  document.getElementById('custAddr').value = '';
   document.getElementById('noteField').value = '';
   document.getElementById('dpAmount').value = '';
   setPayType('lunas');
@@ -1295,7 +1334,7 @@ function renderHistory(){
       </div>
       <div class="r">
         <div class="total mono">${rupiah(h.total)}</div>
-        <div class="badge ${h.status==='lunas' ? 'lunas' : 'dp'}">${h.status==='lunas' ? 'LUNAS' : 'DP · SISA ' + rupiah(h.sisa)}</div>
+        <div class="badge ${h.status==='lunas' ? 'lunas' : 'dp'}">${h.status==='lunas' ? 'LUNAS' : h.status==='belum_bayar' ? 'BELUM BAYAR · ' + rupiah(h.sisa) : 'DP · SISA ' + rupiah(h.sisa)}</div>
       </div>
     </div>
   `).join('');
