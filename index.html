@@ -479,6 +479,7 @@
 <div class="modal-bg" id="detailModalBg" onclick="closeModalBg(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <h3 id="detailTitle">Detail Invoice</h3>
+    <div id="detailVoidNotice" style="display:none; background:rgba(232,93,74,0.1); border:1px solid var(--warn); color:var(--warn); border-radius:9px; padding:10px 12px; font-size:12px; margin-bottom:10px;"></div>
     <div class="invoice-preview" id="detailPreview"></div>
     <div class="modal-actions">
       <button class="btn-wa" onclick="resendWA()">Kirim WA</button>
@@ -486,7 +487,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn-print" onclick="printFromDetail()">🖨️ Cetak Struk</button>
-      <button class="btn-del" onclick="deleteTrx()">Hapus Transaksi</button>
+      <button class="btn-del" id="btnVoidTrx" onclick="voidTrx()" style="display:none;">Batalkan Transaksi</button>
     </div>
     <button class="modal-close" onclick="closeDetail()">Tutup</button>
   </div>
@@ -666,7 +667,8 @@ function rowToTrx(r){
     id: r.id, no: r.no, custName: r.cust_name, custPhone: r.cust_phone, custAddr: r.cust_address,
     items: r.items || [], total: r.total, dp: r.dp, sisa: r.sisa,
     payType: r.pay_type, status: r.status, note: r.note, date: r.date,
-    createdAt: r.created_at, createdBy: r.created_by
+    createdAt: r.created_at, createdBy: r.created_by,
+    voided: r.voided, voidReason: r.void_reason, voidedBy: r.voided_by, voidedAt: r.voided_at
   };
 }
 function trxToRow(data){
@@ -862,6 +864,7 @@ function renderApprovals(){
   `).join('');
 }
 async function approveRequest(id){
+  if(!isOwner()){ alert('Hanya Owner yang bisa menyetujui usulan.'); return; }
   const r = approvalsCache.find(x => x.id === id);
   if(!r) return;
   let result;
@@ -879,6 +882,7 @@ async function approveRequest(id){
   await syncPriceList();
 }
 async function rejectRequest(id){
+  if(!isOwner()){ alert('Hanya Owner yang bisa menolak usulan.'); return; }
   const { error } = await sb.from('price_requests').update({status:'rejected', reviewed_at:new Date().toISOString()}).eq('id', id);
   if(error){ alert('Gagal tolak usulan: ' + error.message); return; }
   await syncApprovals();
@@ -1326,15 +1330,15 @@ function renderHistory(){
     return;
   }
   wrap.innerHTML = history.map(h => `
-    <div class="hist-item" onclick="openDetail('${h.id}')">
+    <div class="hist-item" onclick="openDetail('${h.id}')" style="${h.voided ? 'opacity:0.55;' : ''}">
       <div class="l">
-        <div class="no">${h.no}</div>
-        <div class="name">${escapeHtml(h.custName) || 'Tanpa nama'}</div>
+        <div class="no">${h.no}${h.voided ? ' · DIBATALKAN' : ''}</div>
+        <div class="name" style="${h.voided ? 'text-decoration:line-through;' : ''}">${escapeHtml(h.custName) || 'Tanpa nama'}</div>
         <div class="date">${h.date}${h.createdBy ? ' · oleh ' + escapeHtml(h.createdBy) : ''}</div>
       </div>
       <div class="r">
         <div class="total mono">${rupiah(h.total)}</div>
-        <div class="badge ${h.status==='lunas' ? 'lunas' : 'dp'}">${h.status==='lunas' ? 'LUNAS' : h.status==='belum_bayar' ? 'BELUM BAYAR · ' + rupiah(h.sisa) : 'DP · SISA ' + rupiah(h.sisa)}</div>
+        <div class="badge ${h.voided ? 'rejected' : h.status==='lunas' ? 'lunas' : 'dp'}">${h.voided ? 'DIBATALKAN' : h.status==='lunas' ? 'LUNAS' : h.status==='belum_bayar' ? 'BELUM BAYAR · ' + rupiah(h.sisa) : 'DP · SISA ' + rupiah(h.sisa)}</div>
       </div>
     </div>
   `).join('');
@@ -1346,7 +1350,15 @@ function openDetail(id){
   if(!h) return;
   document.getElementById('detailTitle').textContent = h.no + ' — ' + (h.custName || 'Tanpa nama');
   document.getElementById('detailPreview').textContent = buildInvoiceText(h);
-  document.getElementById('btnMarkLunas').style.display = h.status === 'lunas' ? 'none' : 'block';
+  document.getElementById('btnMarkLunas').style.display = (h.status === 'lunas' || h.voided) ? 'none' : 'block';
+  const voidNotice = document.getElementById('detailVoidNotice');
+  if(h.voided){
+    voidNotice.style.display = 'block';
+    voidNotice.textContent = `Dibatalkan oleh ${h.voidedBy || '-'} · Alasan: ${h.voidReason || '-'}`;
+  } else {
+    voidNotice.style.display = 'none';
+  }
+  document.getElementById('btnVoidTrx').style.display = (isOwner() && !h.voided) ? 'block' : 'none';
   document.getElementById('detailModalBg').classList.add('show');
 }
 function closeDetail(){
@@ -1370,10 +1382,14 @@ async function markLunas(){
   closeDetail();
   await syncHistory();
 }
-async function deleteTrx(){
-  if(!confirm('Hapus transaksi ini dari riwayat?')) return;
-  const { error } = await sb.from('transactions').delete().eq('id', currentDetailId);
-  if(error){ alert('Gagal hapus: ' + error.message); return; }
+async function voidTrx(){
+  if(!isOwner()){ alert('Hanya Owner yang bisa membatalkan transaksi.'); return; }
+  const reason = prompt('Alasan pembatalan transaksi ini (wajib diisi, akan tercatat):');
+  if(!reason || !reason.trim()){ alert('Pembatalan dibatalkan — alasan wajib diisi.'); return; }
+  const { error } = await sb.from('transactions').update({
+    voided: true, void_reason: reason.trim(), voided_by: 'Owner', voided_at: new Date().toISOString()
+  }).eq('id', currentDetailId);
+  if(error){ alert('Gagal membatalkan: ' + error.message); return; }
   closeDetail();
   await syncHistory();
 }
